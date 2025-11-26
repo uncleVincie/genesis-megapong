@@ -18,6 +18,7 @@ symbol.txt
 *.tar.bz2
 *.tar.xz
 *.zip
+*/.DS_Store
 
 .idea/
 .vscode/
