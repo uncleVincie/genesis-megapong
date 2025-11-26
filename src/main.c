@@ -7,15 +7,19 @@ const int LEFT_EDGE = 0;
 const int RIGHT_EDGE = 320;
 const int TOP_EDGE = 0;
 const int BOTTOM_EDGE = 224;
+const char msg_start[22] = "PRESS START TO BEGIN!\0";
+const char msg_reset[37] = "GAME OVER! PRESS START TO PLAY AGAIN.";
 
 /*Score variables*/
 int score = 0;
 char label_score[6] = "SCORE\0";
 char str_score[4] = "0";
 
+//Sprite objects
 Sprite *ball;
 Sprite *player;
 
+//State variables
 int ball_pos_x = 100;
 int ball_pos_y = 100;
 int ball_vel_x = 1; //pixel/frame
@@ -29,34 +33,44 @@ int player_vel_x = 0;
 const int player_width = 32;
 const int player_height = 8;
 
-/*
-The callback function for joypad inputs.
-pressed = 1 if pressed and 0 if not
-changed = 1 if state is different than last frame's state, 0 if not
-*/
-void myJoyHandler(u16 joy, u16 changed, u16 pressed)
+game_on = FALSE;
+
+int sign(int x)
 {
-    if (joy == JOY_1)
-    {
-        /*Set player velocity if left or right are pressed;
-         *set velocity to 0 if no direction is pressed
-         NOTE: need to use bitwise operators here, since enums are hex */
-        if (pressed & BUTTON_RIGHT)
-        {
-            player_vel_x = 3; //pixel/frame
-        }
-        else if (pressed & BUTTON_LEFT)
-        {
-            player_vel_x = -3;
-        }
-        else
-        {
-            if ((changed & BUTTON_RIGHT) | (changed & BUTTON_LEFT))
-            {
-                player_vel_x = 0;
-            }
-        }
-    }
+    return (x > 0) - (x < 0);
+}
+
+void updateScoreDisplay()
+{
+    sprintf(str_score, "%d", score); // converts int score to string score
+    VDP_clearText(1, 2, 3);          // clear current score text
+    VDP_drawText(str_score, 1, 2);   // draw new score text
+}
+
+/*Draws text in the center of the screen*/
+void showText(char s[]){
+	VDP_drawText(s, 20 - strlen(s)/2 ,15);
+}
+
+void endGame(){
+	showText(msg_reset);
+	game_on = FALSE;
+}
+
+void startGame(){
+	score = 0;
+	updateScoreDisplay();
+
+	ball_pos_x = 0;
+	ball_pos_y = 0;
+
+	ball_vel_x = 1;
+	ball_vel_y = 1;
+
+	/*Clear the text from the screen*/
+	VDP_clearTextArea(0,10,40,10);
+
+	game_on = TRUE;
 }
 
 void moveBall()
@@ -81,8 +95,7 @@ void moveBall()
     }
     else if (ball_pos_y + ball_height > BOTTOM_EDGE)
     {
-        ball_pos_y = BOTTOM_EDGE - ball_height;
-        ball_vel_y = -ball_vel_y;
+        endGame();
     }
 
     // sprite collision
@@ -128,16 +141,42 @@ void positionPlayer()
     SPR_setPosition(player, player_pos_x, player_pos_y);
 }
 
-int sign(int x)
+/*
+The callback function for joypad inputs.
+pressed = 1 if pressed and 0 if not
+changed = 1 if state is different than last frame's state, 0 if not
+*/
+void myJoyHandler(u16 joy, u16 changed, u16 pressed)
 {
-    return (x > 0) - (x < 0);
-}
+    if (joy == JOY_1)
+    {
+        /*Set player velocity if left or right are pressed;
+         *set velocity to 0 if no direction is pressed
+         NOTE: need to use bitwise operators here, since enums are hex */
+        if (pressed & BUTTON_RIGHT)
+        {
+            player_vel_x = 3; // pixel/frame
+        }
+        else if (pressed & BUTTON_LEFT)
+        {
+            player_vel_x = -3;
+        }
+        else
+        {
+            if ((changed & BUTTON_RIGHT) | (changed & BUTTON_LEFT))
+            {
+                player_vel_x = 0;
+            }
+        }
 
-void updateScoreDisplay()
-{
-    sprintf(str_score, "%d", score); // converts int score to string score
-    VDP_clearText(1, 2, 3);          // clear current score text
-    VDP_drawText(str_score, 1, 2);   // draw new score text
+        if (pressed & BUTTON_START)
+        {
+            if (!game_on)
+            {
+                startGame();
+            }
+        }
+    }
 }
 
 int main()
@@ -156,6 +195,8 @@ int main()
     VDP_drawText(label_score, 1, 1);
     updateScoreDisplay();
 
+    showText(msg_start);
+
     // Sprites
     SPR_init();
     ball = SPR_addSprite(&imgball, 100, 100, TILE_ATTR(PAL1, 0, FALSE, FALSE));
@@ -163,8 +204,11 @@ int main()
 
     while (1)
     {
-        moveBall();
-        positionPlayer();
+        if (game_on)
+        {
+            moveBall();
+            positionPlayer();
+        }
 
         SPR_update();
         SYS_doVBlankProcess();
