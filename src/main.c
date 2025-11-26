@@ -1,5 +1,6 @@
 #include <genesis.h>
 #include <resources.h>
+#include <string.h>
 
 /*The edges of the play field*/
 const int LEFT_EDGE = 0;
@@ -7,12 +8,17 @@ const int RIGHT_EDGE = 320;
 const int TOP_EDGE = 0;
 const int BOTTOM_EDGE = 224;
 
+/*Score variables*/
+int score = 0;
+char label_score[6] = "SCORE\0";
+char str_score[4] = "0";
+
 Sprite *ball;
 Sprite *player;
 
 int ball_pos_x = 100;
 int ball_pos_y = 100;
-int ball_vel_x = 1;
+int ball_vel_x = 1; //pixel/frame
 int ball_vel_y = 1;
 int ball_width = 8;
 int ball_height = 8;
@@ -37,7 +43,7 @@ void myJoyHandler(u16 joy, u16 changed, u16 pressed)
          NOTE: need to use bitwise operators here, since enums are hex */
         if (pressed & BUTTON_RIGHT)
         {
-            player_vel_x = 3;
+            player_vel_x = 3; //pixel/frame
         }
         else if (pressed & BUTTON_LEFT)
         {
@@ -80,12 +86,24 @@ void moveBall()
     }
 
     // sprite collision
-    if(ball_pos_x < player_pos_x + player_width && ball_pos_x + ball_width > player_pos_x){ //horiz detection
-	if(ball_pos_y < player_pos_y + player_height && ball_pos_y + ball_height >= player_pos_y){ //vert detection
-		ball_pos_y = player_pos_y - ball_height - 1;
-		ball_vel_y = -ball_vel_y;
-	}
-}
+    if (ball_pos_x < player_pos_x + player_width && ball_pos_x + ball_width > player_pos_x)
+    { // horiz detection
+        if (ball_pos_y < player_pos_y + player_height && ball_pos_y + ball_height >= player_pos_y)
+        { // vert detection
+            score++;
+            updateScoreDisplay();
+
+            //make ball faster every 10 collisions
+            if (score % 10 == 0)
+            {
+                ball_vel_x += sign(ball_vel_x);
+                ball_vel_y += sign(ball_vel_y);
+            }
+
+            ball_pos_y = player_pos_y - ball_height - 1;
+            ball_vel_y = -ball_vel_y;
+        }
+    }
 
     // calculate new ball posish
     ball_pos_x += ball_vel_x;
@@ -110,6 +128,18 @@ void positionPlayer()
     SPR_setPosition(player, player_pos_x, player_pos_y);
 }
 
+int sign(int x)
+{
+    return (x > 0) - (x < 0);
+}
+
+void updateScoreDisplay()
+{
+    sprintf(str_score, "%d", score); // converts int score to string score
+    VDP_clearText(1, 2, 3);          // clear current score text
+    VDP_drawText(str_score, 1, 2);   // draw new score text
+}
+
 int main()
 {
     // Input
@@ -117,9 +147,14 @@ int main()
     JOY_setEventHandler(&myJoyHandler);
 
     // Background
-    VDP_loadTileSet(bgtile.tileset, 1, DMA);         // load the tileset into position 1 in VRAM, use Direct Memory Access
-    PAL_setPalette(PAL1, bgtile.palette->data, DMA); // get pallete data from the asset, load into pallet 1, using DMA
-    VDP_fillTileMapRect(BG_B, TILE_ATTR_FULL(PAL1, 0, FALSE, FALSE, 1), 0, 0, 40, 30);
+    VDP_loadTileSet(bgtile.tileset, 1, DMA);                                           // load the tileset into position 1 in VRAM, use Direct Memory Access
+    PAL_setPalette(PAL1, bgtile.palette->data, DMA);                                   // get pallete data from the asset, load into pallet 1, using DMA
+    VDP_fillTileMapRect(BG_B, TILE_ATTR_FULL(PAL1, 0, FALSE, FALSE, 1), 0, 0, 40, 30); // fills whole background with tile 1
+
+    // HUD
+    VDP_setTextPlane(BG_A);
+    VDP_drawText(label_score, 1, 1);
+    updateScoreDisplay();
 
     // Sprites
     SPR_init();
