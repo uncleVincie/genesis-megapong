@@ -79,6 +79,14 @@ void moveBall()
         ball_vel_y = -ball_vel_y;
     }
 
+    // sprite collision
+    if(ball_pos_x < player_pos_x + player_width && ball_pos_x + ball_width > player_pos_x){ //horiz detection
+	if(ball_pos_y < player_pos_y + player_height && ball_pos_y + ball_height >= player_pos_y){ //vert detection
+		ball_pos_y = player_pos_y - ball_height - 1;
+		ball_vel_y = -ball_vel_y;
+	}
+}
+
     // calculate new ball posish
     ball_pos_x += ball_vel_x;
     ball_pos_y += ball_vel_y;
